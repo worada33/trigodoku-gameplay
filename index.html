@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Trig Sudoku</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1424;
+    --panel: #1a2540;
+    --accent: #64c8ff;
+    --gold: #ffd250;
+    --red: #f87171;
+    --text: #dce8ff;
+    --dim: #6b7fa8;
+    --cell-locked: #e8eeff;
+    --cell-empty: #c8d8f8;
+    --cell-select: #64c8ff;
+    --cell-correct: #6ee7b7;
+    --cell-wrong: #f87171;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Sarabun', sans-serif;
+  }
+
+  #app {
+    width: 100%; height: 100vh; height: 100dvh;
+    max-width: 1200px;
+    margin: 0 auto;
+    overflow: hidden;
+    background: var(--bg);
+    position: relative;
+  }
+
+  /* ── screens ── */
+  .screen {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 20px;
+    transition: opacity .25s, transform .25s;
+  }
+  .screen.hidden { opacity:0; pointer-events:none; transform:scale(.97); }
+
+  .bg-circles { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+  .bg-circles span {
+    position:absolute; border-radius:50%;
+    border:1.5px solid rgba(100,200,255,.08);
+    top:50%; left:50%; transform:translate(-50%,-60%);
+  }
+
+  /* ── First page ── */
+  .title-wrap { text-align:center; margin-bottom:36px; }
+  .title-trig, .title-sudoku {
+    font-family:'Space Mono',monospace; font-weight:700;
+    letter-spacing:4px; line-height:1;
+    font-size: clamp(28px, min(9vw,8vh), 56px);
+  }
+  .title-trig   { color:var(--accent); text-shadow:0 0 40px rgba(100,200,255,.4); }
+  .title-sudoku { color:var(--text); }
+  .subtitle { color:var(--dim); font-size:clamp(11px,1.8vw,14px); margin-top:10px; letter-spacing:2px; }
+
+  .btn {
+    border:none; cursor:pointer;
+    font-family:'Space Mono',monospace; font-weight:700;
+    border-radius:14px; padding:14px 36px;
+    transition:all .2s; letter-spacing:1px;
+    font-size:clamp(13px,2.5vw,16px);
+  }
+  .btn-primary {
+    background:linear-gradient(135deg,#1e3a6e,#2a5298);
+    color:var(--accent); border:2px solid var(--accent);
+    box-shadow:0 0 20px rgba(100,200,255,.15);
+  }
+  .btn-primary:hover { background:linear-gradient(135deg,#2a5298,#3b6fd4); transform:translateY(-2px); }
+  .btn-back {
+    background:transparent; color:var(--dim);
+    border:1px solid var(--dim);
+    font-size:11px; padding:7px 14px; border-radius:8px;
+  }
+  .btn-back:hover { color:var(--text); border-color:var(--text); }
+
+  .diff-btns { display:flex; flex-direction:column; gap:10px; width:100%; max-width:260px; }
+  .btn-diff {
+    border:none; cursor:pointer; border-radius:12px;
+    padding:clamp(10px,1.5vh,14px) 20px;
+    display:flex; flex-direction:column; align-items:center; transition:all .2s;
+  }
+  .btn-diff .d-name { font-family:'Space Mono',monospace; font-weight:700; letter-spacing:1px; font-size:clamp(14px,3vw,18px); }
+  .btn-diff .d-desc { font-size:11px; margin-top:2px; opacity:.7; }
+  .btn-easy   { background:#0d2b1a; border:2px solid #6ee7b7; }
+  .btn-easy   .d-name { color:#6ee7b7; }
+  .btn-medium { background:#2b2200; border:2px solid #ffd250; }
+  .btn-medium .d-name { color:#ffd250; }
+  .btn-hard   { background:#2b0d0d; border:2px solid #f87171; }
+  .btn-hard   .d-name { color:#f87171; }
+  .btn-diff:hover { transform:translateY(-2px) scale(1.02); filter:brightness(1.2); }
+
+  /* ════════════════════════════════════════
+     GAME SCREEN
+     มือถือ  (<700px) : flex-column  (บน-ล่าง)
+     คอม/แท็บ (≥700px) : flex-row    (ซ้าย-ขวา)
+  ════════════════════════════════════════ */
+  #game-screen {
+    padding: 8px 10px 6px;
+    justify-content: flex-start;
+    overflow: hidden;
+    height: 100%;
+  }
+
+  /* top bar คงที่ทุกหน้าจอ */
+  .top-bar {
+    width:100%; display:flex; align-items:center; justify-content:space-between;
+    height: clamp(28px,4vh,38px);
+    margin-bottom: clamp(3px,0.8vh,8px);
+    flex-shrink: 0;
+  }
+  .timer { font-family:'Space Mono',monospace; font-size:clamp(15px,3.5vw,20px); color:var(--accent); letter-spacing:2px; }
+  .diff-badge { font-size:11px; color:var(--dim); letter-spacing:1px; }
+
+  .hearts {
+    display:flex; gap:5px; justify-content:center;
+    margin-bottom: clamp(3px,0.8vh,7px);
+    flex-shrink:0;
+  }
+  .heart { font-size:clamp(13px,2.5vw,18px); transition:transform .2s; }
+  .heart.empty { filter:grayscale(1) opacity(.3); }
+  .heart.shake { animation:shake .3s; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)} }
+
+  /* ── game-body: ห่อ grid + buttons ── */
+  #game-body {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    gap: 8px;
+    overflow: hidden;
+
+    /* mobile default: column */
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* คอม/แท็บเล็ต: row */
+  @media (min-width: 700px) {
+    #game-body {
+      flex-direction: row;
+      align-items: stretch;   /* แก้: flex-start → stretch ให้สองฝั่งสูงเท่ากัน */
+    }
+  }
+
+  /* ── grid side ── */
+  #grid-side {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    /* mobile: เต็มความกว้าง */
+    width: 100%;
+    flex-shrink: 0;
+  }
+
+  @media (min-width: 700px) {
+    #grid-side {
+      /* desktop: ใช้ flex:none + width คงที่ ไม่ยืดทับ btn-side */
+      flex: none;
+      width: 52%;          /* แก้: จาก min(55%,480px) → 52% คงที่ */
+      height: 100%;
+    }
+  }
+
+  /* grid-wrap เป็น square เสมอ */
+  #grid-wrap {
+    width: 100%;
+    /* mobile: ให้ grid เป็นสี่เหลี่ยมตาม width */
+    aspect-ratio: 1;
+  }
+
+  @media (min-width: 700px) {
+    #grid-wrap {
+      /* desktop: สูงตาม parent แต่ไม่เกิน width */
+      width: auto;
+      aspect-ratio: 1;
+      height: 100%;
+      max-width: 100%;
+    }
+  }
+
+  #grid {
+    display: grid;
+    border: 2px solid var(--accent);
+    border-radius: 6px;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    box-shadow: 0 0 20px rgba(100,200,255,.15);
+  }
+
+  .cell {
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    font-family:'Space Mono',monospace; color:#1a2540; font-weight:700;
+    background:var(--cell-empty);
+    border:.5px solid rgba(100,120,180,.3);
+    transition:all .15s; text-align:center; padding:1px; line-height:1.2;
+    user-select:none;
+    font-size: clamp(6px, min(1.8vw, 1.6vh), 13px);
+    /* mobile: aspect-ratio ทำให้เป็นสี่เหลี่ยมจัตุรัส */
+    aspect-ratio: 1;
+  }
+
+  @media (min-width: 700px) {
+    .cell {
+      /* desktop: ไม่ต้อง aspect-ratio เพราะ grid จัดให้อยู่แล้ว */
+      aspect-ratio: unset;
+      font-size: clamp(7px, min(1.4vw, 1.4vh), 13px);
+    }
+  }
+
+  .cell.locked   { background:var(--cell-locked); }
+  .cell.selected { background:var(--cell-select); color:white; box-shadow:inset 0 0 0 2px #fff; }
+  .cell.correct  { background:var(--cell-correct); animation:pop .2s; }
+  .cell.wrong    { background:var(--cell-wrong); animation:wobble .3s; }
+  .cell.empty    { color:var(--dim); }
+  .cell:hover:not(.locked):not(.correct) { filter:brightness(.9); }
+  @keyframes pop    { 0%{transform:scale(1)} 50%{transform:scale(1.12)} 100%{transform:scale(1)} }
+  @keyframes wobble { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-3deg)} 75%{transform:rotate(3deg)} }
+  .box-right  { border-right: 2px solid var(--accent) !important; }
+  .box-bottom { border-bottom: 2px solid var(--accent) !important; }
+
+  /* ── btn side ── */
+  #btn-side {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    width: 0;          /* บังคับไม่ให้ขยายเกิน flex container */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* mobile: btn-side กลับมาเป็นความกว้างเต็ม */
+  @media (max-width: 699px) {
+    #btn-side {
+      width: 100%;
+      flex: none;
+    }
+  }
+
+  #btn-label {
+    font-family: 'Space Mono', monospace;
+    font-size: clamp(9px,1.5vw,12px);
+    color: var(--dim);
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+    flex-shrink: 0;
+    /* ซ่อนบนมือถือ เพราะพื้นที่น้อย */
+    display: none;
+  }
+  @media (min-width: 700px) {
+    #btn-label { display: block; }
+  }
+
+  #btn-pool {
+    display: grid;
+    gap: 4px;
+    width: 100%;
+    overflow: hidden;
+    align-content: start;
+
+    /* mobile: 6 คอลัมน์ เหมือนเดิม */
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  @media (min-width: 700px) {
+    #btn-pool {
+      /* desktop: 3 คอลัมน์ เพราะพื้นที่แคบลง (อยู่ฝั่งขวา) */
+      grid-template-columns: repeat(3, 1fr);
+      height: 100%;
+      gap: 5px;
+    }
+  }
+
+  @media (min-width: 900px) {
+    #btn-pool {
+      /* wide desktop: 4 คอลัมน์ */
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  .num-btn {
+    border:none; cursor:pointer; border-radius:6px;
+    padding: clamp(4px,0.8vh,8px) 3px;
+    background:#1e3060; border:1px solid #3a5090;
+    display:flex; flex-direction:column; align-items:center; transition:all .15s;
+  }
+  .num-btn .nb-text {
+    font-family:'Space Mono',monospace;
+    font-size: clamp(7px, min(1.6vw,1.4vh), 11px);
+    color:var(--text); text-align:center; line-height:1.3;
+  }
+  .num-btn .nb-count {
+    font-size: clamp(7px,1.2vh,9px);
+    color:var(--gold); margin-top:1px; font-family:'Space Mono',monospace;
+  }
+  .num-btn.active { background:#1a4090; border-color:var(--accent); box-shadow:0 0 8px rgba(100,200,255,.2); }
+  .num-btn.active .nb-text { color:white; }
+  .num-btn.used   { background:#131d35; border-color:#2a3555; opacity:.45; cursor:default; }
+  .num-btn:hover:not(.used) { transform:translateY(-1px); filter:brightness(1.2); }
+
+  /* ── Popup ── */
+  #popup-overlay {
+    position:absolute; inset:0;
+    background:rgba(0,0,0,.72);
+    display:flex; align-items:center; justify-content:center;
+    z-index:100; backdrop-filter:blur(4px);
+  }
+  #popup-overlay.hidden { display:none; }
+  .popup-card {
+    background:var(--panel); border:2px solid var(--accent);
+    border-radius:20px;
+    padding: clamp(24px,4vh,40px) clamp(20px,4vw,36px);
+    text-align:center; width:min(300px,85vw);
+    box-shadow:0 0 60px rgba(100,200,255,.2);
+    animation:popup-in .3s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes popup-in { from{transform:scale(.7);opacity:0} to{transform:scale(1);opacity:1} }
+  .popup-icon  { font-size:clamp(32px,7vw,44px); margin-bottom:8px; }
+  .popup-title { font-family:'Space Mono',monospace; font-size:clamp(16px,4vw,24px); font-weight:700; margin-bottom:6px; }
+  .popup-sub   { color:var(--dim); font-size:clamp(11px,2vw,13px); margin-bottom:14px; }
+  .popup-time  { font-family:'Space Mono',monospace; color:var(--gold); font-size:clamp(13px,2.5vw,16px); margin-bottom:16px; }
+  .btn-ok {
+    background:linear-gradient(135deg,#1e3a6e,#2a5298);
+    color:var(--accent); border:2px solid var(--accent);
+    border-radius:12px; padding:10px 40px;
+    font-family:'Space Mono',monospace; font-size:clamp(13px,2.5vw,15px); font-weight:700;
+    cursor:pointer; transition:all .2s;
+  }
+  .btn-ok:hover { box-shadow:0 0 20px rgba(100,200,255,.3); transform:translateY(-2px); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="bg-circles" id="bg-circles"></div>
+
+  <!-- First -->
+  <div class="screen" id="first-screen">
+    <div class="title-wrap">
+      <div class="title-trig">TRIG</div>
+      <div class="title-sudoku">SUDOKU</div>
+      <div class="subtitle">TRIGONOMETRY PUZZLE GAME</div>
+    </div>
+    <button class="btn btn-primary" onclick="showScreen('select-screen')">▶&nbsp; PLAY</button>
+  </div>
+
+  <!-- Select -->
+  <div class="screen hidden" id="select-screen">
+    <h2 style="font-family:'Space Mono',monospace;color:var(--accent);letter-spacing:2px;margin-bottom:clamp(14px,3vh,28px);font-size:clamp(13px,3vw,17px);">SELECT DIFFICULTY</h2>
+    <div class="diff-btns">
+      <button class="btn-diff btn-easy"   onclick="startGame('Easy')"><span class="d-name">EASY</span><span class="d-desc">6×6 | Degrees (°)</span></button>
+      <button class="btn-diff btn-medium" onclick="startGame('Medium')"><span class="d-name">MEDIUM</span><span class="d-desc">9×9 | Radians (π)</span></button>
+      <button class="btn-diff btn-hard"   onclick="startGame('Hard')"><span class="d-name">HARD</span><span class="d-desc">9×9 | Mixed</span></button>
+    </div>
+    <button class="btn btn-back" style="margin-top:clamp(14px,3vh,28px)" onclick="showScreen('first-screen')">← Back</button>
+  </div>
+
+  <!-- Game -->
+  <div class="screen hidden" id="game-screen">
+    <div class="top-bar">
+      <button class="btn btn-back" onclick="showScreen('select-screen')">← Back</button>
+      <div class="timer" id="timer-display">00:00</div>
+      <div class="diff-badge" id="diff-badge">EASY</div>
+    </div>
+    <div class="hearts" id="hearts"></div>
+
+    <!-- game-body: ซ้าย-ขวา บน desktop / บน-ล่าง บน mobile -->
+    <div id="game-body">
+      <!-- ซ้าย: grid -->
+      <div id="grid-side">
+        <div id="grid-wrap">
+          <div id="grid"></div>
+        </div>
+      </div>
+      <!-- ขวา: ปุ่มตัวเลือก -->
+      <div id="btn-side">
+        <div id="btn-label">CHOOSE ANSWER</div>
+        <div id="btn-pool"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup -->
+  <div id="popup-overlay" class="hidden">
+    <div class="popup-card">
+      <div class="popup-icon"  id="popup-icon"></div>
+      <div class="popup-title" id="popup-title"></div>
+      <div class="popup-sub"   id="popup-sub"></div>
+      <div class="popup-time"  id="popup-time"></div>
+      <button class="btn-ok" onclick="closePopup()">OK</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const TRIG={
+  1:{degree:["sin 270°","cos 180°","tan 135°"],radian:["sin 3π/2","cos π","tan 3π/4"]},
+  2:{degree:["sec 30°","cosec 60°"],radian:["sec π/6","cosec π/3"]},
+  3:{degree:["tan 60°","cot 30°"],radian:["tan π/3","cot π/6"]},
+  4:{degree:["sin 0°","cos 90°","tan 0°"],radian:["sin 0","cos π/2","tan 0"]},
+  5:{degree:["sin 90°","sec 0°","cot 45°"],radian:["sin π/2","sec 0","cot π/4"]},
+  6:{degree:["sin 30°","cos 60°"],radian:["sin π/6","cos π/3"]},
+  7:{degree:["sin 45°","cos 45°"],radian:["sin π/4","cos π/4"]},
+  8:{degree:["sin 60°","cos 30°"],radian:["sin π/3","cos π/6"]},
+  9:{degree:["tan 30°","cot 60°"],radian:["tan π/6","cot π/3"]},
+};
+function getDisp(k,fmt){
+  const p=fmt==='degree'?TRIG[k].degree:fmt==='radian'?TRIG[k].radian:[...TRIG[k].degree,...TRIG[k].radian];
+  return p[Math.floor(Math.random()*p.length)];
+}
+const ANS6=[[1,2,3,4,5,6],[4,5,6,1,2,3],[2,3,4,5,6,1],[5,6,1,2,3,4],[3,4,5,6,1,2],[6,1,2,3,4,5]];
+const ANS9=[[5,6,7,8,9,1,2,3,4],[8,9,1,2,3,4,5,6,7],[2,3,4,5,6,7,8,9,1],[3,4,5,6,7,8,9,1,2],[6,7,8,9,1,2,3,4,5],[9,1,2,3,4,5,6,7,8],[4,5,6,7,8,9,1,2,3],[7,8,9,1,2,3,4,5,6],[1,2,3,4,5,6,7,8,9]];
+
+let G={}, timerInterval=null;
+
+function startGame(diff){
+  clearInterval(timerInterval);
+  const isEasy=diff==='Easy', gs=isEasy?6:9;
+  const lc=isEasy?.70:diff==='Medium'?.50:.30;
+  const fmt=isEasy?'degree':diff==='Medium'?'radian':'mixed';
+  const ans=isEasy?ANS6:ANS9, bc=isEasy?18:36;
+  G={diff,gs,fmt,cells:[],selected:null,life:4,ended:false,elapsed:0,remaining:{},btnPool:[]};
+  for(let v=1;v<=gs;v++) G.remaining[v]=gs;
+  for(let r=0;r<gs;r++){
+    G.cells.push([]);
+    for(let c=0;c<gs;c++){
+      const v=ans[r][c],locked=Math.random()<lc,disp=locked?getDisp(v,fmt):'';
+      G.cells[r].push({correct:v,current:locked?v:0,disp,locked,state:locked?'locked':'empty'});
+      if(locked) G.remaining[v]--;
+    }
+  }
+  const pool=[];
+  for(let v=1;v<=gs;v++) for(let i=0;i<Math.floor(bc/gs);i++) pool.push(v);
+  pool.sort(()=>Math.random()-.5);
+  G.btnPool=pool.map(v=>({val:v,disp:getDisp(v,fmt)}));
+  showScreen('game-screen');
+  document.getElementById('diff-badge').textContent=diff.toUpperCase();
+  renderGrid(); renderButtons(); renderHearts();
+  G.startTime=Date.now();
+  timerInterval=setInterval(()=>{
+    if(!G.ended){G.elapsed=(Date.now()-G.startTime)/1000;document.getElementById('timer-display').textContent=fmtTime(G.elapsed);}
+  },500);
+}
+
+function fmtTime(s){const t=Math.floor(s);return`${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`;}
+
+function renderGrid(){
+  const grid=document.getElementById('grid'),{gs}=G;
+  grid.style.gridTemplateColumns=`repeat(${gs},1fr)`;
+  grid.innerHTML='';
+  for(let r=0;r<gs;r++) for(let c=0;c<gs;c++){
+    const cell=G.cells[r][c],el=document.createElement('div');
+    el.className='cell '+cell.state;
+    el.textContent=cell.disp;
+    if(gs===9){if((c+1)%3===0&&c<gs-1)el.classList.add('box-right');if((r+1)%3===0&&r<gs-1)el.classList.add('box-bottom');}
+    else{if((c+1)%3===0&&c<gs-1)el.classList.add('box-right');if((r+1)%2===0&&r<gs-1)el.classList.add('box-bottom');}
+    el.addEventListener('click',()=>clickCell(r,c));
+    grid.appendChild(el);
+  }
+}
+
+function updateCell(r,c){
+  const el=document.getElementById('grid').children[r*G.gs+c],cell=G.cells[r][c];
+  el.className=el.className.replace(/\b(locked|empty|selected|correct|wrong)\b/g,'').trim();
+  el.classList.add('cell',cell.state); el.textContent=cell.disp;
+}
+
+function renderButtons(){
+  const pool=document.getElementById('btn-pool');
+  pool.innerHTML='';
+  G.btnPool.forEach((btn,i)=>{
+    const rem=G.remaining[btn.val]||0,el=document.createElement('div');
+    el.className='num-btn '+(rem>0?'active':'used');
+    el.innerHTML=`<span class="nb-text">${btn.disp}</span><span class="nb-count">${rem}</span>`;
+    if(rem>0) el.addEventListener('click',()=>clickButton(i));
+    pool.appendChild(el);
+  });
+}
+
+function renderHearts(){
+  const h=document.getElementById('hearts'); h.innerHTML='';
+  for(let i=0;i<4;i++){const el=document.createElement('span');el.className='heart'+(i>=G.life?' empty':'');el.textContent='❤️';h.appendChild(el);}
+}
+
+function clickCell(r,c){
+  if(G.ended) return;
+  const cell=G.cells[r][c];
+  if(cell.locked&&(cell.state==='locked'||cell.state==='correct')) return;
+  if(G.selected){const[sr,sc]=G.selected,prev=G.cells[sr][sc];if(prev.state==='selected')prev.state=prev.current===0?'empty':prev.current===prev.correct?'correct':'wrong';updateCell(sr,sc);}
+  G.selected=[r,c]; cell.state='selected'; updateCell(r,c);
+}
+
+function clickButton(i){
+  if(G.ended||!G.selected) return;
+  const{val,disp}=G.btnPool[i];
+  if((G.remaining[val]||0)<=0) return;
+  const[r,c]=G.selected,cell=G.cells[r][c];
+  if(cell.locked&&(cell.state==='locked'||cell.state==='correct')) return;
+  cell.current=val; cell.disp=disp;
+  if(val===cell.correct){
+    cell.state='correct'; cell.locked=true;
+    G.remaining[val]=Math.max(0,(G.remaining[val]||0)-1);
+    G.selected=null; updateCell(r,c); renderButtons(); checkWin();
+  } else {
+    cell.state='wrong'; updateCell(r,c); G.life--;
+    renderHearts();
+    const hearts=document.querySelectorAll('.heart');
+    if(hearts[G.life]){hearts[G.life].classList.add('shake');setTimeout(()=>hearts[G.life]?.classList.remove('shake'),300);}
+    if(G.life<=0){G.ended=true;clearInterval(timerInterval);setTimeout(()=>showPopup(false),400);}
+  }
+}
+
+function checkWin(){
+  for(let r=0;r<G.gs;r++) for(let c=0;c<G.gs;c++) if(!G.cells[r][c].locked) return;
+  G.ended=true; clearInterval(timerInterval); setTimeout(()=>showPopup(true),400);
+}
+
+function showPopup(won){
+  document.getElementById('popup-icon').textContent=won?'🎉':'💔';
+  document.getElementById('popup-title').textContent=won?'YOU WIN!':'GAME OVER';
+  document.getElementById('popup-title').style.color=won?'var(--gold)':'var(--red)';
+  document.getElementById('popup-sub').textContent=won?'Congratulations!':'Better luck next time!';
+  document.getElementById('popup-time').textContent=won?'Time: '+fmtTime(G.elapsed):'';
+  document.getElementById('popup-overlay').classList.remove('hidden');
+}
+
+function closePopup(){document.getElementById('popup-overlay').classList.add('hidden');showScreen('select-screen');}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('hidden',s.id!==id));}
+
+(()=>{const w=document.getElementById('bg-circles');for(let i=0;i<8;i++){const s=document.createElement('span'),sz=60+i*60;s.style.cssText=`width:${sz}px;height:${sz}px;opacity:${0.04+i*.015}`;w.appendChild(s);}})();
+</script>
+</body>
+</html>

@@ -104,9 +104,10 @@
   .btn-diff:hover { transform:translateY(-2px) scale(1.02); filter:brightness(1.2); }
 
   /* ════════════════════════════════════════
-     GAME SCREEN
-     มือถือ  (<700px) : flex-column  (บน-ล่าง)
-     คอม/แท็บ (≥700px) : flex-row    (ซ้าย-ขวา)
+     GAME SCREEN — layout ถูกกำหนดโดย JS ผ่าน data-device
+     mobile   : flex-column  (ตารางบน / ปุ่มล่าง)
+     tablet   : flex-row     (ตาราง 65% ซ้าย / ปุ่ม 35% ขวา)
+     desktop  : flex-row     (ตาราง 65% ซ้าย / ปุ่ม 35% ขวา)
   ════════════════════════════════════════ */
   #game-screen {
     padding: 8px 10px 6px;
@@ -115,7 +116,7 @@
     height: 100%;
   }
 
-  /* top bar คงที่ทุกหน้าจอ */
+  /* top bar */
   .top-bar {
     width:100%; display:flex; align-items:center; justify-content:space-between;
     height: clamp(28px,4vh,38px);
@@ -124,6 +125,19 @@
   }
   .timer { font-family:'Space Mono',monospace; font-size:clamp(15px,3.5vw,20px); color:var(--accent); letter-spacing:2px; }
   .diff-badge { font-size:11px; color:var(--dim); letter-spacing:1px; }
+
+  /* device badge */
+  #device-badge {
+    position: fixed;
+    top: 6px; right: 8px;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--dim);
+    letter-spacing: 1px;
+    opacity: 0.5;
+    pointer-events: none;
+    z-index: 200;
+  }
 
   .hearts {
     display:flex; gap:5px; justify-content:center;
@@ -135,7 +149,9 @@
   .heart.shake { animation:shake .3s; }
   @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)} }
 
-  /* ── game-body: ห่อ grid + buttons ── */
+  /* ══════════════════════════════════════
+     game-body — ค่าเริ่มต้น (mobile)
+  ══════════════════════════════════════ */
   #game-body {
     flex: 1;
     min-height: 0;
@@ -143,54 +159,100 @@
     display: flex;
     gap: 8px;
     overflow: hidden;
-
-    /* mobile default: column */
-    flex-direction: column;
+    flex-direction: column;   /* mobile: บน-ล่าง */
     align-items: stretch;
   }
 
-  /* คอม/แท็บเล็ต: row */
-  @media (min-width: 700px) {
-    #game-body {
-      flex-direction: row;
-      align-items: stretch;   /* แก้: flex-start → stretch ให้สองฝั่งสูงเท่ากัน */
-    }
+  /* ── MOBILE layout ── */
+  [data-device="mobile"] #game-body {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  [data-device="mobile"] #grid-side {
+    width: 100%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+  }
+  [data-device="mobile"] #grid-wrap {
+    width: 100%;
+    aspect-ratio: 1;
+  }
+  [data-device="mobile"] #btn-side {
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+  }
+  [data-device="mobile"] #btn-pool {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  [data-device="mobile"] #btn-label { display: none; }
+
+  /* ── TABLET layout (เหมือน desktop) ── */
+  [data-device="tablet"] #game-body,
+  [data-device="desktop"] #game-body {
+    flex-direction: row;
+    align-items: stretch;
   }
 
-  /* ── grid side ── */
+  [data-device="tablet"] #grid-side,
+  [data-device="desktop"] #grid-side {
+    flex: none;
+    width: 65%;
+    height: 100%;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  [data-device="tablet"] #grid-wrap,
+  [data-device="desktop"] #grid-wrap {
+    width: auto;
+    aspect-ratio: 1;
+    height: 100%;
+    max-width: 100%;
+  }
+
+  [data-device="tablet"] #btn-side,
+  [data-device="desktop"] #btn-side {
+    flex: none;
+    width: 35%;
+    min-height: 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  [data-device="tablet"] #btn-pool,
+  [data-device="desktop"] #btn-pool {
+    grid-template-columns: repeat(3, 1fr);
+    height: 100%;
+    gap: 5px;
+  }
+
+  [data-device="tablet"] #btn-label,
+  [data-device="desktop"] #btn-label {
+    display: block;
+  }
+
+  /* wide desktop: 4 คอลัมน์ */
+  [data-device="desktop"] #btn-pool {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  /* grid-wrap default (ก่อน JS กำหนด device) */
   #grid-side {
     display: flex;
     align-items: flex-start;
     justify-content: center;
-    /* mobile: เต็มความกว้าง */
     width: 100%;
     flex-shrink: 0;
   }
-
-  @media (min-width: 700px) {
-    #grid-side {
-      /* desktop: ใช้ flex:none + width คงที่ ไม่ยืดทับ btn-side */
-      flex: none;
-      width: 52%;          /* แก้: จาก min(55%,480px) → 52% คงที่ */
-      height: 100%;
-    }
-  }
-
-  /* grid-wrap เป็น square เสมอ */
   #grid-wrap {
     width: 100%;
-    /* mobile: ให้ grid เป็นสี่เหลี่ยมตาม width */
     aspect-ratio: 1;
-  }
-
-  @media (min-width: 700px) {
-    #grid-wrap {
-      /* desktop: สูงตาม parent แต่ไม่เกิน width */
-      width: auto;
-      aspect-ratio: 1;
-      height: 100%;
-      max-width: 100%;
-    }
   }
 
   #grid {
@@ -235,23 +297,15 @@
   .box-right  { border-right: 2px solid var(--accent) !important; }
   .box-bottom { border-bottom: 2px solid var(--accent) !important; }
 
-  /* ── btn side ── */
+  /* ── btn side base (ค่าเริ่มต้น mobile) ── */
   #btn-side {
     flex: 1;
     min-height: 0;
     min-width: 0;
-    width: 0;          /* บังคับไม่ให้ขยายเกิน flex container */
+    width: 100%;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-  }
-
-  /* mobile: btn-side กลับมาเป็นความกว้างเต็ม */
-  @media (max-width: 699px) {
-    #btn-side {
-      width: 100%;
-      flex: none;
-    }
   }
 
   #btn-label {
@@ -261,11 +315,7 @@
     letter-spacing: 1px;
     margin-bottom: 4px;
     flex-shrink: 0;
-    /* ซ่อนบนมือถือ เพราะพื้นที่น้อย */
     display: none;
-  }
-  @media (min-width: 700px) {
-    #btn-label { display: block; }
   }
 
   #btn-pool {
@@ -274,25 +324,7 @@
     width: 100%;
     overflow: hidden;
     align-content: start;
-
-    /* mobile: 6 คอลัมน์ เหมือนเดิม */
     grid-template-columns: repeat(6, 1fr);
-  }
-
-  @media (min-width: 700px) {
-    #btn-pool {
-      /* desktop: 3 คอลัมน์ เพราะพื้นที่แคบลง (อยู่ฝั่งขวา) */
-      grid-template-columns: repeat(3, 1fr);
-      height: 100%;
-      gap: 5px;
-    }
-  }
-
-  @media (min-width: 900px) {
-    #btn-pool {
-      /* wide desktop: 4 คอลัมน์ */
-      grid-template-columns: repeat(4, 1fr);
-    }
   }
 
   .num-btn {
@@ -349,6 +381,7 @@
 <body>
 <div id="app">
   <div class="bg-circles" id="bg-circles"></div>
+  <div id="device-badge"></div>
 
   <!-- First -->
   <div class="screen" id="first-screen">
@@ -409,6 +442,59 @@
 </div>
 
 <script>
+/* ════════════════════════════════════════
+   DEVICE DETECTION
+   ตรวจสอบอุปกรณ์จาก User-Agent + screen size
+   แล้ว set data-device บน <html> และ #app
+   เพื่อให้ CSS [data-device="..."] ทำงาน
+════════════════════════════════════════ */
+function detectDevice() {
+  const ua = navigator.userAgent.toLowerCase();
+  const w  = window.innerWidth;
+  const h  = window.innerHeight;
+
+  // ตรวจ Touch support
+  const hasTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+
+  // ตรวจ User-Agent
+  const isTabletUA = /ipad|tablet|(android(?!.*mobile))|kindle|silk|playbook/i.test(ua);
+  const isMobileUA = /iphone|ipod|android.*mobile|mobile/i.test(ua);
+
+  let device;
+  if (isTabletUA) {
+    device = 'tablet';
+  } else if (isMobileUA) {
+    device = 'mobile';
+  } else if (hasTouch && w < 1024 && Math.min(w, h) >= 600) {
+    // หน้าจอสัมผัสขนาดกลาง (เช่น iPad ที่ UA ไม่ตรง)
+    device = 'tablet';
+  } else if (hasTouch && w < 768) {
+    device = 'mobile';
+  } else {
+    device = 'desktop';
+  }
+
+  // Apply ไปยัง #app (ใช้ CSS data-attribute selector)
+  const app = document.getElementById('app');
+  if (app) app.setAttribute('data-device', device);
+
+  // แสดง badge
+  const badge = document.getElementById('device-badge');
+  const icons = { mobile: '📱', tablet: '📟', desktop: '🖥️' };
+  const labels = { mobile: 'MOBILE', tablet: 'TABLET', desktop: 'DESKTOP' };
+  if (badge) badge.textContent = `${icons[device]} ${labels[device]}`;
+
+  return device;
+}
+
+// เรียกทันทีที่โหลด
+const DEVICE = detectDevice();
+
+// re-detect เมื่อหมุนจอ (บางแท็บเล็ตเปลี่ยน orientation)
+window.addEventListener('resize', () => {
+  detectDevice();
+});
+
 const TRIG={
   1:{degree:["sin 270°","cos 180°","tan 135°"],radian:["sin 3π/2","cos π","tan 3π/4"]},
   2:{degree:["sec 30°","cosec 60°"],radian:["sec π/6","cosec π/3"]},

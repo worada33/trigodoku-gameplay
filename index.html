@@ -382,7 +382,7 @@
 <div id="app">
   <div class="bg-circles" id="bg-circles"></div>
   <div id="device-badge"></div>
-  <button class="btn btn-back" 
+  <button id="home-back-btn" class="btn btn-back" 
   style="position:fixed; top:12px; left:12px; z-index:200;" 
   onclick="window.location.href='https://worada33.github.io/trigodoku-web/'">← Back</button>
 
@@ -630,7 +630,7 @@ function showPopup(won){
 }
 
 function closePopup(){document.getElementById('popup-overlay').classList.add('hidden');showScreen('select-screen');}
-function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('hidden',s.id!==id));}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('hidden',s.id!==id));const h=document.getElementById('home-back-btn');if(h)h.style.display=id==='first-screen'?'':'none';}
 
 (()=>{const w=document.getElementById('bg-circles');for(let i=0;i<8;i++){const s=document.createElement('span'),sz=60+i*60;s.style.cssText=`width:${sz}px;height:${sz}px;opacity:${0.04+i*.015}`;w.appendChild(s);}})();
 </script>
